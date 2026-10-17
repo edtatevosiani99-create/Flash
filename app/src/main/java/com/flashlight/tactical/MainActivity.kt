@@ -453,7 +453,7 @@ class MainActivity : Activity() {
             val y = event.y
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    if (screenFlashOn) {
+                    if (screenFlashOn || emergencyOn) {
                         val now = System.currentTimeMillis()
                         if (now - lastTapTime < 450L) {
                             stopScreenFlash()

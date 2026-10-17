@@ -255,19 +255,21 @@ class MainActivity : Activity() {
             super.onDraw(canvas)
             val w = width.toFloat()
             val h = height.toFloat()
-            if (screenFlashOn) {
-                val colors = intArrayOf(Color.RED, Color.BLUE, Color.RED, Color.BLUE, Color.RED, Color.rgb(255, 205, 0))
+            if (screenFlashOn || emergencyOn) {
+                val step = if (screenFlashOn) screenStep else emergencyStep
                 val color = when (emergencyMode) {
                     1 -> Color.RED
-                    2 -> if (screenStep % 2 == 0) Color.BLUE else Color.rgb(255, 205, 0)
-                    else -> if (screenStep % 2 == 0) Color.RED else Color.BLUE
+                    2 -> if (step % 2 == 0) Color.BLUE else Color.rgb(255, 205, 0)
+                    else -> if (step % 2 == 0) Color.RED else Color.BLUE
                 }
                 canvas.drawColor(color)
-                p.color = Color.WHITE
-                p.textAlign = Paint.Align.CENTER
-                p.textSize = w * 0.045f
-                p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
-                canvas.drawText("ДВОЙНОЕ КАСАНИЕ — СТОП", w / 2, h * 0.92f, p)
+                if (screenFlashOn) {
+                    p.color = Color.WHITE
+                    p.textAlign = Paint.Align.CENTER
+                    p.textSize = w * 0.045f
+                    p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                    canvas.drawText("ДВОЙНОЕ КАСАНИЕ — СТОП", w / 2, h * 0.92f, p)
+                }
                 return
             }
             canvas.drawColor(bg)

@@ -2,6 +2,7 @@ package com.flashlight.tactical
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.hardware.camera2.CameraManager
@@ -22,6 +23,13 @@ class MainActivity : Activity() {
     private var torchOn = false
     private var strobeOn = false
     private var sosOn = false
+    private var canaryOn = false
+    private var emergencyOn = false
+    private var screenFlashOn = false
+    private var emergencyMode = 0 // 0 police, 1 fire, 2 ambulance
+    private var emergencyStep = 0
+    private var screenStep = 0
+    private var lastTapTime = 0L
     private var brightness = 1f
     private var strobeDelay = 260L
     private val handler = Handler(Looper.getMainLooper())
@@ -79,12 +87,18 @@ class MainActivity : Activity() {
         handler.removeCallbacksAndMessages(null)
         strobeOn = false
         sosOn = false
+        canaryOn = false
+        emergencyOn = false
+        screenFlashOn = false
         pulse = false
         sosIndex = 0
+        emergencyStep = 0
+        screenStep = 0
+        window.decorView.systemUiVisibility = 0
     }
 
     private fun togglePower() {
-        if (strobeOn || sosOn) {
+        if (strobeOn || sosOn || canaryOn || emergencyOn || screenFlashOn) {
             stopModes()
             torchOn = true
             setTorch(true, brightness)
@@ -96,19 +110,40 @@ class MainActivity : Activity() {
     }
 
     private fun toggleStrobe() {
-        if (strobeOn) {
-            stopModes()
-            torchOn = false
-            setTorch(false)
-        } else {
-            stopModes()
-            strobeOn = true
-            torchOn = true
-            pulse = true
-            setTorch(true, 1f)
-            scheduleStrobe()
-        }
-        flashlightView.invalidate()
+        val choices = arrayOf(
+            "Обычное мигание фонарика",
+            "Канарейка — свет / стоп",
+            "Полиция — красный / синий",
+            "Пожарная — красные вспышки",
+            "Скорая — синий / жёлтый",
+            "Экранная мигалка — весь экран"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Выбери режим мигалки")
+            .setItems(choices) { _, which ->
+                stopModes()
+                torchOn = false
+                setTorch(false)
+                when (which) {
+                    0 -> startTorchStrobe()
+                    1 -> startCanary()
+                    2 -> { emergencyMode = 0; startEmergency() }
+                    3 -> { emergencyMode = 1; startEmergency() }
+                    4 -> { emergencyMode = 2; startEmergency() }
+                    5 -> startScreenFlash()
+                }
+                flashlightView.invalidate()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun startTorchStrobe() {
+        strobeOn = true
+        torchOn = true
+        pulse = true
+        setTorch(true, 1f)
+        scheduleStrobe()
     }
 
     private fun scheduleStrobe() {
@@ -119,6 +154,66 @@ class MainActivity : Activity() {
             flashlightView.invalidate()
             scheduleStrobe()
         }, strobeDelay)
+    }
+
+    private fun startCanary() {
+        canaryOn = true
+        pulse = true
+        setTorch(true, 1f)
+        scheduleCanary()
+    }
+
+    private fun scheduleCanary() {
+        handler.postDelayed({
+            if (!canaryOn) return@postDelayed
+            pulse = !pulse
+            setTorch(pulse, 1f)
+            flashlightView.invalidate()
+            scheduleCanary()
+        }, 350L)
+    }
+
+    private fun startEmergency() {
+        emergencyOn = true
+        emergencyStep = 0
+        scheduleEmergency()
+    }
+
+    private fun scheduleEmergency() {
+        if (!emergencyOn) return
+        val pattern = when (emergencyMode) {
+            1 -> longArrayOf(100, 100, 100, 350, 100, 100, 100, 650) // fire red double bursts
+            2 -> longArrayOf(180, 100, 180, 350) // ambulance blue/yellow
+            else -> longArrayOf(140, 100, 140, 350) // police red/blue
+        }
+        pulse = emergencyStep % 2 == 0
+        setTorch(false)
+        emergencyStep++
+        flashlightView.invalidate()
+        handler.postDelayed({ scheduleEmergency() }, pattern[(emergencyStep - 1) % pattern.size])
+    }
+
+    private fun startScreenFlash() {
+        screenFlashOn = true
+        screenStep = 0
+        window.decorView.systemUiVisibility =
+            (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        scheduleScreenFlash()
+    }
+
+    private fun scheduleScreenFlash() {
+        if (!screenFlashOn) return
+        screenStep++
+        flashlightView.invalidate()
+        handler.postDelayed({ scheduleScreenFlash() }, 180L)
+    }
+
+    private fun stopScreenFlash() {
+        stopModes()
+        torchOn = false
+        setTorch(false)
+        flashlightView.invalidate()
     }
 
     private fun toggleSos() {
@@ -158,9 +253,24 @@ class MainActivity : Activity() {
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            canvas.drawColor(bg)
             val w = width.toFloat()
             val h = height.toFloat()
+            if (screenFlashOn) {
+                val colors = intArrayOf(Color.RED, Color.BLUE, Color.RED, Color.BLUE, Color.RED, Color.rgb(255, 205, 0))
+                val color = when (emergencyMode) {
+                    1 -> Color.RED
+                    2 -> if (screenStep % 2 == 0) Color.BLUE else Color.rgb(255, 205, 0)
+                    else -> if (screenStep % 2 == 0) Color.RED else Color.BLUE
+                }
+                canvas.drawColor(color)
+                p.color = Color.WHITE
+                p.textAlign = Paint.Align.CENTER
+                p.textSize = w * 0.045f
+                p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                canvas.drawText("ДВОЙНОЕ КАСАНИЕ — СТОП", w / 2, h * 0.92f, p)
+                return
+            }
+            canvas.drawColor(bg)
             p.shader = LinearGradient(0f, 0f, w, h, Color.rgb(22, 31, 44), bg, Shader.TileMode.CLAMP)
             canvas.drawRect(0f, 0f, w, h, p)
             p.shader = null
@@ -299,7 +409,7 @@ class MainActivity : Activity() {
             p.textSize = w*0.031f
             p.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             canvas.drawText("ПОВОРАЧИВАЙ ГОЛОВКУ", cx, h*0.765f, p)
-            canvas.drawText(if (strobeOn) "СКОРОСТЬ МИГАНИЯ" else "ЯРКОСТЬ СВЕТА", cx, h*0.795f, p)
+            canvas.drawText(if (strobeOn || canaryOn || emergencyOn) "СКОРОСТЬ МИГАНИЯ" else "ЯРКОСТЬ СВЕТА", cx, h*0.795f, p)
             val barW = w*0.46f
             p.color = Color.rgb(43,57,73)
             canvas.drawRoundRect(cx-barW/2, h*0.815f, cx+barW/2, h*0.824f, 10f,10f,p)
@@ -314,7 +424,7 @@ class MainActivity : Activity() {
             sosRect.set(w*0.08f, by, w*0.08f+bw, by+bh)
             strobeRect.set(w*0.56f, by, w*0.56f+bw, by+bh)
             drawControl(canvas, sosRect, "SOS", sosOn)
-            drawControl(canvas, strobeRect, "МИГАНИЕ", strobeOn)
+            drawControl(canvas, strobeRect, "МИГАЛКИ", strobeOn || canaryOn || emergencyOn || screenFlashOn)
             p.color = Color.rgb(84,100,118)
             p.textSize = w*0.024f
             p.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
@@ -341,6 +451,16 @@ class MainActivity : Activity() {
             val y = event.y
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    if (screenFlashOn) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime < 450L) {
+                            stopScreenFlash()
+                            lastTapTime = 0L
+                        } else {
+                            lastTapTime = now
+                        }
+                        return true
+                    }
                     lastX = x
                     dragTotal = 0f
                     draggingHead = headRect.contains(x, y)

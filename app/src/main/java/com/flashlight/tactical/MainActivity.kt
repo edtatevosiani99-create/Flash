@@ -51,13 +51,25 @@ class MainActivity : Activity() {
         val id = cameraId ?: return
         try {
             if (Build.VERSION.SDK_INT >= 33 && enabled) {
-                val max = cameraManager.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
-                val min = cameraManager.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_STRENGTH_DEFAULT_LEVEL) ?: 1
-                val strength = (min + (max - min) * level.coerceIn(0.1f, 1f)).roundToInt().coerceIn(1, max)
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                val max = characteristics.get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+                // Torch strength levels range from 1 to maximum. DEFAULT_LEVEL is not the minimum.
+                val strength = if (max > 1) {
+                    (1f + (max - 1) * level.coerceIn(0.01f, 1f)).roundToInt().coerceIn(1, max)
+                } else {
+                    1
+                }
                 cameraManager.turnOnTorchWithStrengthLevel(id, strength)
-            } else cameraManager.setTorchMode(id, enabled)
+            } else {
+                cameraManager.setTorchMode(id, enabled)
+            }
         } catch (_: Exception) {
-            try { cameraManager.setTorchMode(id, enabled) } catch (_: Exception) {
+            try {
+                cameraManager.setTorchMode(id, enabled)
+                if (enabled && Build.VERSION.SDK_INT >= 33) {
+                    // If strength control fails on this device, keep the flashlight usable at full power.
+                }
+            } catch (_: Exception) {
                 Toast.makeText(this, "Вспышка недоступна", Toast.LENGTH_SHORT).show()
             }
         }

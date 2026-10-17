@@ -176,44 +176,111 @@ class MainActivity : Activity() {
                     null, Shader.TileMode.CLAMP)
                 canvas.drawOval(cx-headW*1.15f, headY-headH*0.7f, cx+headW*1.15f, headY+headH*2.3f, glow)
             }
-            // flashlight body
-            rect.set(cx-w*0.22f, headY+headH*0.62f, cx+w*0.22f, h*0.72f)
-            p.shader = LinearGradient(rect.left, 0f, rect.right, 0f,
-                intArrayOf(Color.rgb(26,31,39), Color.rgb(105,119,133), Color.rgb(34,40,48), Color.rgb(12,16,22)), null, Shader.TileMode.CLAMP)
-            canvas.drawRoundRect(rect, w*0.07f, w*0.07f, p)
-            p.shader = null
-            // handle grooves
-            p.color = Color.argb(115, 4, 7, 10)
-            p.strokeWidth = w*0.009f
-            for (i in 0..7) {
-                val y = headY + headH + w*(0.075f + i*0.047f)
-                canvas.drawLine(cx-w*0.19f, y, cx+w*0.19f, y, p)
+            // Realistic classic flashlight body: rounded tail, narrow grip and flared head
+            val bodyTop = headY + headH * 0.52f
+            val bodyBottom = h * 0.725f
+            val bodyPath = Path().apply {
+                moveTo(cx - w*0.145f, bodyTop)
+                lineTo(cx + w*0.145f, bodyTop)
+                lineTo(cx + w*0.105f, bodyTop + w*0.18f)
+                lineTo(cx + w*0.105f, bodyBottom - w*0.10f)
+                quadTo(cx + w*0.105f, bodyBottom, cx + w*0.055f, bodyBottom)
+                lineTo(cx - w*0.055f, bodyBottom)
+                quadTo(cx - w*0.105f, bodyBottom, cx - w*0.105f, bodyBottom - w*0.10f)
+                lineTo(cx - w*0.105f, bodyTop + w*0.18f)
+                close()
             }
-            // flashlight head metallic ring
-            p.shader = LinearGradient(0f, headY, 0f, headY+headH,
-                intArrayOf(Color.rgb(176,190,202), Color.rgb(39,49,61), Color.rgb(114,128,141)), null, Shader.TileMode.CLAMP)
-            canvas.drawRoundRect(headRect, w*0.11f, w*0.11f, p)
+            p.setShadowLayer(w*0.025f, 0f, w*0.018f, Color.BLACK)
+            p.shader = LinearGradient(cx-w*0.15f, 0f, cx+w*0.15f, 0f,
+                intArrayOf(Color.rgb(8,11,15), Color.rgb(76,84,91), Color.rgb(30,36,42), Color.rgb(5,8,11)),
+                floatArrayOf(0f, 0.24f, 0.62f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawPath(bodyPath, p)
             p.shader = null
-            rect.set(cx-headW*0.39f, headY+headH*0.13f, cx+headW*0.39f, headY+headH*0.87f)
-            p.color = Color.rgb(7, 12, 18)
-            canvas.drawOval(rect, p)
-            rect.inset(w*0.025f, w*0.025f)
-            p.shader = RadialGradient(cx, headY+headH*0.5f, headW*0.33f,
-                intArrayOf(if (torchOn || strobeOn || sosOn) Color.WHITE else Color.rgb(180,197,211),
-                    Color.rgb(104,128,148), Color.rgb(21,29,39)), null, Shader.TileMode.CLAMP)
-            canvas.drawOval(rect, p)
-            p.shader = null
-            // ON button on the handle
-            val btnY = h*0.59f
-            p.setShadowLayer(w*0.025f, 0f, w*0.012f, Color.BLACK)
-            p.color = if (torchOn || strobeOn || sosOn) Color.rgb(36,150,224) else Color.rgb(25,37,50)
-            powerRect.set(cx-w*0.12f, btnY-w*0.045f, cx+w*0.12f, btnY+w*0.045f)
-            canvas.drawRoundRect(powerRect, w*0.045f, w*0.045f, p)
             p.clearShadowLayer()
+
+            // Tail cap and grip rings
+            p.shader = LinearGradient(cx-w*0.12f, 0f, cx+w*0.12f, 0f,
+                intArrayOf(Color.rgb(9,12,15), Color.rgb(89,97,103), Color.rgb(19,24,29), Color.rgb(5,7,9)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(cx-w*0.12f, bodyBottom-w*0.105f, cx+w*0.12f, bodyBottom-w*0.025f, w*0.025f, w*0.025f, p)
+            p.shader = null
+            p.color = Color.rgb(13,17,21)
+            p.strokeWidth = w*0.008f
+            for (i in 0..9) {
+                val gy = bodyTop + w*(0.20f + i*0.034f)
+                if (gy < bodyBottom-w*0.12f) canvas.drawLine(cx-w*0.098f, gy, cx+w*0.098f, gy, p)
+            }
+
+            // Flared head and metallic bezel
+            val headPath = Path().apply {
+                moveTo(cx-w*0.14f, headY+headH*0.78f)
+                lineTo(cx-w*0.235f, headY+headH*0.53f)
+                lineTo(cx-w*0.30f, headY+headH*0.42f)
+                quadTo(cx-w*0.33f, headY+headH*0.36f, cx-w*0.31f, headY+headH*0.27f)
+                lineTo(cx-w*0.275f, headY+headH*0.10f)
+                quadTo(cx-w*0.265f, headY+headH*0.02f, cx-w*0.20f, headY+headH*0.02f)
+                lineTo(cx+w*0.20f, headY+headH*0.02f)
+                quadTo(cx+w*0.265f, headY+headH*0.02f, cx+w*0.275f, headY+headH*0.10f)
+                lineTo(cx+w*0.31f, headY+headH*0.27f)
+                quadTo(cx+w*0.33f, headY+headH*0.36f, cx+w*0.30f, headY+headH*0.42f)
+                lineTo(cx+w*0.235f, headY+headH*0.53f)
+                lineTo(cx+w*0.14f, headY+headH*0.78f)
+                close()
+            }
+            p.setShadowLayer(w*0.018f, 0f, w*0.01f, Color.BLACK)
+            p.shader = LinearGradient(0f, headY, 0f, headY+headH,
+                intArrayOf(Color.rgb(133,143,151), Color.rgb(37,43,48), Color.rgb(94,103,109), Color.rgb(18,23,28)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawPath(headPath, p)
+            p.shader = null
+            p.clearShadowLayer()
+
+            // Front lens: concentric glass, silver bezel and visible LED reflector
+            rect.set(cx-w*0.285f, headY+headH*0.07f, cx+w*0.285f, headY+headH*0.48f)
+            p.shader = LinearGradient(rect.left, rect.top, rect.right, rect.bottom,
+                intArrayOf(Color.rgb(225,231,235), Color.rgb(78,88,97), Color.rgb(20,26,31)),
+                null, Shader.TileMode.CLAMP)
+            canvas.drawOval(rect, p)
+            p.shader = null
+            rect.inset(w*0.018f, w*0.018f)
+            p.color = Color.rgb(9,13,17)
+            canvas.drawOval(rect, p)
+            rect.inset(w*0.018f, w*0.018f)
+            p.shader = RadialGradient(cx-w*0.035f, headY+headH*0.245f, w*0.19f,
+                intArrayOf(if (torchOn || strobeOn || sosOn) Color.WHITE else Color.rgb(205,214,220),
+                    Color.rgb(150,161,168), Color.rgb(49,58,65), Color.rgb(14,19,24)),
+                floatArrayOf(0f, 0.28f, 0.72f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawOval(rect, p)
+            p.shader = null
+            p.color = Color.rgb(30,36,41)
+            p.style = Paint.Style.STROKE
+            p.strokeWidth = w*0.009f
+            canvas.drawOval(rect, p)
+            p.style = Paint.Style.FILL
+            // LED emitter in the center of the reflector
+            p.color = if (torchOn || strobeOn || sosOn) Color.WHITE else Color.rgb(218,224,228)
+            canvas.drawCircle(cx, headY+headH*0.275f, w*0.045f, p)
+            p.color = Color.rgb(125,135,142)
+            canvas.drawCircle(cx, headY+headH*0.275f, w*0.025f, p)
+            p.color = Color.rgb(245,247,248)
+            canvas.drawCircle(cx-w*0.008f, headY+headH*0.265f, w*0.009f, p)
+
+            // Rubberized power switch on the grip
+            val btnY = h*0.59f
+            p.setShadowLayer(w*0.018f, 0f, w*0.008f, Color.BLACK)
+            p.shader = LinearGradient(cx-w*0.105f, btnY-w*0.04f, cx+w*0.105f, btnY+w*0.04f,
+                intArrayOf(Color.rgb(12,16,20), Color.rgb(62,71,78), Color.rgb(12,16,20)), null, Shader.TileMode.CLAMP)
+            powerRect.set(cx-w*0.105f, btnY-w*0.04f, cx+w*0.105f, btnY+w*0.04f)
+            canvas.drawRoundRect(powerRect, w*0.035f, w*0.035f, p)
+            p.shader = null
+            p.clearShadowLayer()
+            p.color = if (torchOn || strobeOn || sosOn) Color.rgb(72,177,94) else Color.rgb(110,119,126)
+            canvas.drawCircle(cx, btnY, w*0.022f, p)
             p.color = Color.WHITE
-            p.textSize = w*0.045f
-            p.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
-            canvas.drawText(if (torchOn || strobeOn || sosOn) "ON" else "OFF", cx, btnY+w*0.016f, p)
+            p.textAlign = Paint.Align.CENTER
+            p.textSize = w*0.022f
+            p.typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            canvas.drawText(if (torchOn || strobeOn || sosOn) "ON" else "OFF", cx, btnY+w*0.065f, p)
 
             // instruction
             p.color = Color.rgb(137,157,178)
